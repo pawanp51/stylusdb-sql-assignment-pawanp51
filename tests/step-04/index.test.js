@@ -19,6 +19,7 @@ test('Parse SQL Query', () => {
     });
 });
 
+
 test('Execute SQL Query', async () => {
     const query = 'SELECT id, name FROM sample';
     const result = await executeSELECTQuery(query);

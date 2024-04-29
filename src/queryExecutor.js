@@ -1,5 +1,5 @@
-const { parseSelectQuery } = require('./queryParser');
-const readCSV = require('./csvReader');
+const { parseSelectQuery, parseInsertQuery, parseDeleteQuery } = require('./queryParser');
+const { readCSV, writeCSV } = require('./csvStorage');
 
 function performInnerJoin(data, joinData, joinCondition, fields, table) {
     return data.flatMap(mainRow => {
@@ -323,5 +323,48 @@ async function executeSELECTQuery(query) {
     }
 }
 
+async function executeINSERTQuery(query) {
+    console.log(parseInsertQuery(query));
+    const { table, columns, values } = parseInsertQuery(query);
+    const data = await readCSV(`${table}.csv`);
 
-module.exports = executeSELECTQuery;
+    // Create a new row object
+    const newRow = {};
+    columns.forEach((column, index) => {
+        // Remove single quotes from the values
+        let value = values[index];
+        if (value.startsWith("'") && value.endsWith("'")) {
+            value = value.substring(1, value.length - 1);
+        }
+        newRow[column] = value;
+    });
+
+    // Add the new row to the data
+    data.push(newRow);
+
+    // Save the updated data back to the CSV file
+    await writeCSV(`${table}.csv`, data); // Implement writeCSV function
+
+    return { message: "Row inserted successfully." };
+}
+
+async function executeDELETEQuery(query) {
+    const { table, whereClauses } = parseDeleteQuery(query);
+    let data = await readCSV(`${table}.csv`);
+
+    if (whereClauses.length > 0) {
+        // Filter out the rows that meet the where clause conditions
+        data = data.filter(row => !whereClauses.every(clause => evaluateCondition(row, clause)));
+    } else {
+        // If no where clause, clear the entire table
+        data = [];
+    }
+
+    // Save the updated data back to the CSV file
+    await writeCSV(`${table}.csv`, data);
+
+    return { message: "Rows deleted successfully." };
+}
+
+
+module.exports = { executeSELECTQuery, executeINSERTQuery, executeDELETEQuery };
